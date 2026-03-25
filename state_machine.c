@@ -134,6 +134,11 @@ static bool set_system_fault(state_context_t* ctx) {
 	ctx->system_mode = FAULT;
 }
 
+static bool traffic_sensor_failure(state_context_t* ctx) {
+	// F1: Vehicle sensor failure
+	// F1 ∈ {¬heartbeat_A, ¬heartbeat_B} ⇒ ◯( m = FAULT ∧ σA ​= OFF ∧ σB = OFF ∧ alert_raised)
+}
+
 // Simulation build inclusion. Resets the system state and virtual pins to a known good state (e.g. 0).
 void reset_system(state_context_t* ctx)
 {
