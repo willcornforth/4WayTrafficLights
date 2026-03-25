@@ -30,16 +30,20 @@ typedef struct {
     bool pair_flip_flop;
 
     unsigned char vehicle_sensor_a;
-    unsigned int vehicle_sensor_heartbeat_a;
+    unsigned char vehicle_sensor_heartbeat_a;
+    unsigned char last_vehicle_sensor_heartbeat_a;
+    unsigned long long last_heartbeat_time_a;
 
     unsigned char vehicle_sensor_b;
-	unsigned int vehicle_sensor_heartbeat_b;
+    unsigned char vehicle_sensor_heartbeat_b;
+	unsigned char last_vehicle_sensor_heartbeat_b;
+    unsigned long long last_heartbeat_time_b;
 
 	unsigned char pedestrian_button_a;
     unsigned char pedestrian_button_b;
 
-    unsigned int phase_time;
-    unsigned int pedestrian_time;
+    unsigned long long phase_time;
+    unsigned long long pedestrian_time;
 } state_context_t;
 
 // Aquires latest sensor data and updates the state context accordingly.
