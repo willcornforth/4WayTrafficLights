@@ -128,7 +128,7 @@ static bool validate_light_state(light_state_t state) {
 
 // For system critical faults, that can't be handled gracefully.
 // F ∈ {F2, F3, F4, F5 } ⇒ ◯( m = FAULT ∧ σA ​= OFF ∧ σB = OFF ∧ alert_raised)
-static bool set_system_fault(state_context_t* ctx) {
+bool set_system_fault(state_context_t* ctx) {
 	set_light_state('A', OFF);
 	set_light_state('B', OFF);
 	ctx->system_mode = FAULT;
@@ -223,11 +223,11 @@ void state_machine_tick(state_context_t* ctx) {
 
 	// When setting states, the ctx doesn't update till the next tick to prevent infinite loops.
 	// Fault detection is handled in set_light_state and takes precedent over normal states.
-	unsigned char master_pair = ctx->pair_flip_flop == false ? 'A' : 'B';
-	light_state_t master_state = ctx->pair_flip_flop == false ? ctx->pair_a : ctx->pair_b;
+	const unsigned char master_pair = ctx->pair_flip_flop == false ? 'A' : 'B';
+	const light_state_t master_state = ctx->pair_flip_flop == false ? ctx->pair_a : ctx->pair_b;
 
-	bool next_state_time_reached  = hal_get_elapsed_time_ms()- ctx->phase_time >= TRANSIENT_STATE_DURATION_MS;
-	bool green_state_time_reached = hal_get_elapsed_time_ms() - ctx->phase_time >= GREEN_STATE_DURATION_MS;
+	const bool next_state_time_reached  = hal_get_elapsed_time_ms()- ctx->phase_time >= TRANSIENT_STATE_DURATION_MS;
+	const bool green_state_time_reached = hal_get_elapsed_time_ms() - ctx->phase_time >= GREEN_STATE_DURATION_MS;
 	bool state_changed = false;
 
 	// Master cycle begins.
