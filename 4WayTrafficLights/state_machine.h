@@ -46,15 +46,23 @@ typedef struct {
     unsigned long long pedestrian_time;
 } state_context_t;
 
-extern void set_system_fault(state_context_t* ctx);
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-// Aquires latest sensor data and updates the state context accordingly.
-void sensor_poll(state_context_t* ctx);
+    void set_system_fault(state_context_t* ctx);
 
-// Executes one tick of the state machine, updating the system's state and virtual pins as necessary.
-void state_machine_tick(state_context_t* ctx);
+    // Aquires latest sensor data and updates the state context accordingly.
+    void sensor_poll(state_context_t* ctx);
 
-// Resets the system to a known initial state, clearing all virtual pins and context values.
-void reset_system(state_context_t* ctx);
+    // Executes one tick of the state machine, updating the system's state and virtual pins as necessary.
+    void state_machine_tick(state_context_t* ctx);
+
+    // Resets the system to a known initial state, clearing all virtual pins and context values.
+    void reset_system(state_context_t* ctx);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // STATE_MACHINE_H
