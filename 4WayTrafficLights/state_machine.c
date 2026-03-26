@@ -128,7 +128,7 @@ static bool validate_light_state(light_state_t state) {
 
 // For system critical faults, that can't be handled gracefully.
 // F ∈ {F2, F3, F4, F5 } ⇒ ◯( m = FAULT ∧ σA ​= OFF ∧ σB = OFF ∧ alert_raised)
-bool set_system_fault(state_context_t* ctx) {
+void set_system_fault(state_context_t* ctx) {
 	set_light_state('A', OFF);
 	set_light_state('B', OFF);
 	ctx->system_mode = FAULT;

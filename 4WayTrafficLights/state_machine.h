@@ -46,7 +46,7 @@ typedef struct {
     unsigned long long pedestrian_time;
 } state_context_t;
 
-bool set_system_fault(state_context_t* ctx);
+extern void set_system_fault(state_context_t* ctx);
 
 // Aquires latest sensor data and updates the state context accordingly.
 void sensor_poll(state_context_t* ctx);
