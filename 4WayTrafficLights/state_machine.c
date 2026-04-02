@@ -34,6 +34,7 @@
 	// *	As stated in the predicate: permissive(s) ⇔ s ∈ {GREEN, AMBER, RED_AND_AMBER}
 	// *	"If and only if, s is in the set of {GREEN, AMBER, RED_AND_AMBER}, then s is permissive."
 	static bool is_light_state_permissive(light_state_t state) {
+		// permissive(s) ⇔ s ∈ { GREEN, AMBER, RED_AMBER }
 		return state == GREEN || state == RED_AND_AMBER || state == AMBER;
 	}
 
@@ -43,6 +44,11 @@
 		unsigned char amber,
 		unsigned char green
 	) {
+		if(red == PIN_INVALID || amber == PIN_INVALID || green == PIN_INVALID) {
+			printf("[-] Warning: Invalid pin state detected. Defaulting to OFF.\n");
+			return OFF;
+		}
+
 		if (red && amber && !green) {
 			return RED_AND_AMBER;
 		}
@@ -122,21 +128,12 @@
 		}
 	}
 
-	static bool validate_light_state(light_state_t state) {
-
-	}
-
 	// For system critical faults, that can't be handled gracefully.
 	// F ∈ {F2, F3, F4, F5 } ⇒ ◯( m = FAULT ∧ σA ​= OFF ∧ σB = OFF ∧ alert_raised)
 	void set_system_fault(state_context_t* ctx) {
 		set_light_state('A', OFF);
 		set_light_state('B', OFF);
 		ctx->system_mode = FAULT;
-	}
-
-	static bool traffic_sensor_failure(state_context_t* ctx) {
-		// F1: Vehicle sensor failure
-		// F1 ∈ {¬heartbeat_A, ¬heartbeat_B} ⇒ ◯( m = FAULT ∧ σA ​= OFF ∧ σB = OFF ∧ alert_raised)
 	}
 
 	// Simulation build inclusion. Resets the system state and virtual pins to a known good state (e.g. 0).
@@ -172,11 +169,11 @@
 
 		// Read the current state of the pedestrian buttons and update the virtual pins accordingly
 		// and set the state machine's context.
-		ctx->vehicle_sensor_a = hal_read_pin(PAIR_A_VEHICLE_SENSOR_PIN);
-		ctx->vehicle_sensor_b = hal_read_pin(PAIR_B_VEHICLE_SENSOR_PIN);
+		ctx->vehicle_sensor_a.sensor_value = hal_read_pin(PAIR_A_VEHICLE_SENSOR_PIN);
+		ctx->vehicle_sensor_b.sensor_value = hal_read_pin(PAIR_B_VEHICLE_SENSOR_PIN);
 
-		ctx->vehicle_sensor_heartbeat_a = hal_read_pin(PAIR_A_VEHICLE_SENSOR_HEARTBEAT_PIN);
-		ctx->vehicle_sensor_heartbeat_b = hal_read_pin(PAIR_B_VEHICLE_SENSOR_HEARTBEAT_PIN);
+		ctx->vehicle_sensor_a.heartbeat = hal_read_pin(PAIR_A_VEHICLE_SENSOR_HEARTBEAT_PIN);
+		ctx->vehicle_sensor_b.heartbeat = hal_read_pin(PAIR_B_VEHICLE_SENSOR_HEARTBEAT_PIN);
 
 		ctx->pedestrian_button_a = hal_read_pin(PAIR_A_PED_BUTTON_PIN);
 		ctx->pedestrian_button_b = hal_read_pin(PAIR_B_PED_BUTTON_PIN);
@@ -192,6 +189,44 @@
 		ctx->pair_b = determine_light_state_from_pins(b_red, b_amber, b_green);
 	}
 
+	// Monitors vehicle snesor heartbeats and returns true if a fault condition is detected (i.e. no heartbeat received within the timeout threshold).
+	bool has_vehicle_sensor_fault_time_elapsed(vehicle_sensor_t* sensor) {
+		const unsigned long long current_time = hal_get_elapsed_time_ms();
+
+		// Does this need to be checked as if this input remains faulty it will time out anyway?
+		//if (sensor->heartbeat == PIN_INVALID) {
+		//	return true; // Invalid heartbeat value, fault detected.
+		//}
+
+		if(sensor->heartbeat != sensor->last_heartbeat) {
+			sensor->last_heartbeat = sensor->heartbeat;
+			sensor->last_heartbeat_time = current_time;
+			return false; // Heartbeat received, no fault.
+		}
+		else if (current_time - sensor->last_heartbeat_time >= FAULT_DETECTION_TIMEOUT_MS) {
+			return true; // No heartbeat received within the timeout threshold, fault detected.
+		}
+
+		// No fault as of yet, as we wait for the time to elapse before confirming the fault condition.
+		return false;
+	}
+
+	bool are_both_directions_permissive(state_context_t* ctx) {
+		// Both directions are permissive which shouldn't be allowed.
+		// V = { (σA, σB) | ¬( permissive(σA) ∧ permissive(σB) ) }
+		return is_light_state_permissive(ctx->pair_a) && is_light_state_permissive(ctx->pair_b);
+	}
+
+	bool is_lighting_fault(state_context_t* ctx) {
+		// Constrain the system to fault when one or more lights are off.
+		// (σA = OFF ∨ σB = OFF) ⇒ (σA = OFF ∧ σB = OFF)
+		return (ctx->pair_a == OFF || ctx->pair_b == OFF) && !(ctx->pair_a == OFF && ctx->pair_b == OFF);
+	}
+
+	void master_cycle_tick(state_context_t* ctx) {
+
+	}
+
 	void state_machine_tick(state_context_t* ctx) {
 		// Begin state machine...
 		if (ctx == NULL) {
@@ -199,22 +234,24 @@
 			return;
 		}
 
-		// Both directions are permissive which shouldn't be allowed.
-		// V = { (σA, σB) | ¬( permissive(σA) ∧ permissive(σB) ) }
-		if (is_light_state_permissive(ctx->pair_a) && is_light_state_permissive(ctx->pair_b)) {
-			ctx->pair_a = OFF;
-			ctx->pair_b = OFF;
-			ctx->system_mode = FAULT;
+		// These if statements could be condesed but are left separate for clarity and to allow for more specific logging for each fault condition.
+		if (has_vehicle_sensor_fault_time_elapsed(&ctx->vehicle_sensor_a)) {
+			printf("[-] Fault detected: Vehicle sensor A heartbeat failure. Entering fault mode.\n");
+			set_system_fault(ctx);
+		}
+
+		if (has_vehicle_sensor_fault_time_elapsed(&ctx->vehicle_sensor_b)) {
+			printf("[-] Fault detected: Vehicle sensor B heartbeat failure. Entering fault mode.\n");
+			set_system_fault(ctx);
+		}
+
+		if (are_both_directions_permissive(ctx)) {
+			set_system_fault(ctx);
 			printf("[-] Fault detected: Both directions are permissive. Entering fault mode.\n");
 		}
 
-		// Constrain the system to fault when one or more lights are off.
-		// (σA = OFF ∨ σB = OFF) ⇒ (σA = OFF ∧ σB = OFF)
-		if ((ctx->pair_a == OFF || ctx->pair_b == OFF) && !(ctx->pair_a == OFF && ctx->pair_b == OFF)) {
-			ctx->pair_a = OFF; // Need to consider writing back to HAL...
-			ctx->pair_b = OFF;
-			ctx->system_mode = FAULT;
-
+		if (is_lighting_fault(ctx)) {
+			set_system_fault(ctx);
 			printf("[-] Fault detected: One or more lights are off. Entering fault mode.\n");
 		}
 
@@ -230,7 +267,7 @@
 		const bool green_state_time_reached = hal_get_elapsed_time_ms() - ctx->phase_time >= GREEN_STATE_DURATION_MS;
 		bool state_changed = false;
 
-		// Master cycle begins.
+		// Master cycle begins. This is the fall back if the vehicle sensors fail.
 		if (master_state == RED && next_state_time_reached) {
 			set_light_state(master_pair, RED_AND_AMBER);
 			state_changed = true;

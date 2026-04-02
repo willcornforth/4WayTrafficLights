@@ -18,34 +18,6 @@
 #define SENSOR_POLLING_INTERVAL_MS 100
 #define INTERVAL_PER_TICK_MS 100
 
-// System state as defined in as a tuple
-//S=⟨σ_A, σ_B, m, sens_A, sens_B, ped, t_phase, t_ped⟩
-typedef struct {
-	unsigned int tick_count;
-
-    light_state_t pair_a;
-    light_state_t pair_b;
-
-    system_mode_t system_mode; // Normal, fault.
-    bool pair_flip_flop;
-
-    unsigned char vehicle_sensor_a;
-    unsigned char vehicle_sensor_heartbeat_a;
-    unsigned char last_vehicle_sensor_heartbeat_a;
-    unsigned long long last_heartbeat_time_a;
-
-    unsigned char vehicle_sensor_b;
-    unsigned char vehicle_sensor_heartbeat_b;
-	unsigned char last_vehicle_sensor_heartbeat_b;
-    unsigned long long last_heartbeat_time_b;
-
-	unsigned char pedestrian_button_a;
-    unsigned char pedestrian_button_b;
-
-    unsigned long long phase_time;
-    unsigned long long pedestrian_time;
-} state_context_t;
-
 #ifdef __cplusplus
 extern "C" {
 #endif
