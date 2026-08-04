@@ -45,7 +45,7 @@ def train_bc(cfg: HarnessConfig, data_path: str | Path) -> dict:
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            epoch_losses.append(float(loss))
+            epoch_losses.append(float(loss.detach()))
         losses.append(float(np.mean(epoch_losses)))
 
     ckpt_dir = Path(cfg.train.checkpoint_dir)

@@ -84,7 +84,7 @@ def main() -> None:
     p.add_argument("--data", default="data/demos.jsonl")
     p.set_defaults(func=cmd_train_bc)
 
-    p = sub.add_parser("train-rl", help="PPO fine-tuning (scaffold)")
+    p = sub.add_parser("train-rl", help="PPO fine-tuning over the surf env")
     p.add_argument("--checkpoint", default=None, help="BC checkpoint to start from")
     p.add_argument("--seed", type=int, default=0)
     p.set_defaults(func=cmd_train_rl)

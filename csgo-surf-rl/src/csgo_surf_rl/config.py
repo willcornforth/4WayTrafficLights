@@ -24,6 +24,7 @@ class DataConfig:
 class ModelConfig:
     hidden_sizes: tuple[int, ...] = (256, 256)
     activation: str = "relu"
+    log_std_init: float = -1.0  # initial exploration noise (continuous channels)
 
 
 @dataclass
@@ -33,9 +34,14 @@ class TrainConfig:
     bc_epochs: int = 10
     ppo_total_ticks: int = 1_000_000
     ppo_rollout_ticks: int = 4096
+    ppo_epochs: int = 10  # optimization passes over each rollout
+    ppo_minibatch_size: int = 256
     gamma: float = 0.995
     gae_lambda: float = 0.95
     clip_range: float = 0.2
+    value_coef: float = 0.5
+    entropy_coef: float = 0.01
+    max_grad_norm: float = 0.5
     seed: int = 0
     checkpoint_dir: str = "checkpoints"
 

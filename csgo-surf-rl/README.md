@@ -50,8 +50,8 @@ src/csgo_surf_rl/
   models/
     policy.py      # Torch policy over ClientState features → UserCmd (lazy torch import)
   training/
-    bc.py          # Behavior-cloning pretraining loop (stub)
-    ppo.py         # PPO fine-tuning loop over SurfEnv (stub)
+    bc.py          # Behavior-cloning pretraining loop
+    ppo.py         # PPO fine-tuning loop over SurfEnv (clipped surrogate + GAE)
   config.py        # Dataclass configs for env, data, model, training
   cli.py           # `surf-rl record | train-bc | train-rl | eval`
 tests/             # Smoke tests running entirely against the mock bridge
@@ -65,6 +65,7 @@ pip install -e ".[dev]"      # torch is an optional extra: .[train]
 pytest                        # everything runs against the mock bridge
 python -m csgo_surf_rl.cli record --out data/run.jsonl --ticks 1000
 python -m csgo_surf_rl.cli train-bc --data data/run.jsonl
+python -m csgo_surf_rl.cli train-rl --checkpoint checkpoints/bc_policy.pt
 ```
 
 ## Connecting a real client
