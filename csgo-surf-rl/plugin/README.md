@@ -1,0 +1,102 @@
+# Surf telemetry plugin
+
+The in-game half of the `GameClientBridge` boundary: a Source-engine plugin
+that runs **inline in the game process**, reads the client's own predicted
+state each tick, ships it to the Python harness, and writes the model's
+returned `UserCmd` back into the engine's outgoing command for that same
+tick. Because the read (`ClientState`) and the write (`UserCmd`) both happen
+at the client's `CreateMove`, the data the model trains on and the data it
+acts through are the same domain — the whole point of the harness.
+
+```
+  ClientModeShared::CreateMove(dt, CUserCmd*)      ← hooked, inline in-engine
+        │  original() builds the tick's command
+        ▼
+  GameAdapter.CaptureState() ──► StateFrame ──┐
+                                              │  loopback TCP (JSON lines)
+                          CommandFrame ◄───── ┤  ↕  Python SocketClientBridge
+        │                                     │
+  GameAdapter.ApplyCommand(cmd, CUserCmd*) ◄──┘  overwrites viewangles/moves/buttons
+```
+
+## Scope and intended use
+
+This is research tooling for **surf** — a solo/cooperative movement
+discipline — for **local training on a server you control** (a listen server
+or your own dedicated server). It is not built to evade anti-cheat, is not
+obfuscated, and is not intended for use on servers you do not own or in
+competitive play. Use it where injecting your own model's movement is
+something you're authorized to do.
+
+## Files
+
+| File | Role |
+|------|------|
+| `src/plugin.cpp` | `IServerPluginCallbacks` lifecycle + `CreateInterface` export |
+| `src/createmove_hook.*` | VMT hook of `ClientModeShared::CreateMove` |
+| `src/session.*` | Per-run state: transport + adapter + tick counter |
+| `src/game_adapter.*` | Reads local-player predicted state, applies commands |
+| `src/ipc_client.*` | Loopback TCP client, newline-framed JSON |
+| `src/vmt_hook.h` | Generic vtable hook helper |
+| `src/sdk_types.h` | SDK type surface (or include the real HL2SDK) |
+| `src/game_offsets.h` | **Build-specific** interface versions, VMT index, netvars |
+| `include/surf_protocol.h` | Wire constants + button translation (shared) |
+| `PROTOCOL.md` | The wire protocol, matching the Python dicts |
+
+## Building
+
+```bash
+cd plugin
+cmake -S . -B build            # add -DHL2SDK_ROOT=/path/to/hl2sdk for the real SDK
+cmake --build build
+```
+
+Without `HL2SDK_ROOT` it compiles against the self-contained shims in
+`sdk_types.h` / `server_plugin.h` — enough to type-check the transport and
+hook logic. For a loadable plugin, build with a real HL2SDK checkout.
+
+## Integration points to fill in for a target build
+
+These are isolated on purpose; the logic never hard-codes them:
+
+1. **`game_offsets.h`** — interface version strings, the `CreateMove` VMT
+   index, and the `C_BasePlayer` netvar offsets (`m_vecOrigin`,
+   `m_vecVelocity`, `m_fFlags`). The adapter refuses to read state until the
+   offsets are set, rather than reading garbage.
+2. **`ResolveClientMode()` in `plugin.cpp`** — return the `ClientModeShared`
+   instance to hook (typically a sig-scan for `g_pClientMode`). Until it
+   returns non-null the plugin loads but does not install the hook.
+3. **Reset command** — set `SURF_RESET_COMMAND` to whatever teleports the
+   player to the course start on your map/server (requires the appropriate
+   server privileges).
+
+## Installing
+
+Copy the built module and `surf_telemetry.vdf` into `<game>/addons/`, then
+either autoload it or `plugin_load addons/surf_telemetry` from the console.
+
+## Configuration (environment variables)
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `SURF_HARNESS_HOST` | `127.0.0.1` | harness listen address |
+| `SURF_HARNESS_PORT` | `42813` | harness listen port |
+| `SURF_RESPONSE_TIMEOUT_MS` | `20` | per-tick wait for a command before falling back |
+| `SURF_RESET_COMMAND` | *(empty)* | console command run on a harness `reset` |
+
+## Driving it from Python
+
+Start the harness first (it listens), then launch the game:
+
+```python
+from csgo_surf_rl.client.socket_bridge import SocketClientBridge
+from csgo_surf_rl.env.surf_env import SurfEnv
+
+with SocketClientBridge(port=42813) as bridge:  # blocks until the plugin connects
+    env = SurfEnv(bridge)
+    obs, info = env.reset()
+    ...
+```
+
+`SocketClientBridge` is a drop-in `GameClientBridge`, so the env, recorder,
+and training loops are unchanged from the mock-bridge setup.

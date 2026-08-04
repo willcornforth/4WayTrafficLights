@@ -69,9 +69,29 @@ python -m csgo_surf_rl.cli train-bc --data data/run.jsonl
 
 ## Connecting a real client
 
-Implement `GameClientBridge` for your integration (e.g. a local offline
-server with a SourceMod/GOTV telemetry plugin, or a demo-file parser for
-offline demonstration data) and pass it wherever the mock bridge is used
-today. Nothing above the bridge changes — that is the point of the boundary.
+Two pieces make the boundary real against an actual game:
+
+- **`plugin/`** — a Source-engine telemetry plugin that runs *inline in the
+  game process*, hooks the client's per-tick `CreateMove`, and exchanges
+  `ClientState`/`UserCmd` with the harness over a loopback socket. See
+  `plugin/README.md` and `plugin/PROTOCOL.md`. It is scoped to local surf
+  training on a server you control.
+- **`SocketClientBridge`** (`csgo_surf_rl.client.socket_bridge`) — the
+  harness-side `GameClientBridge` that talks to that plugin. Drop it in
+  wherever `MockSurfBridge` is used:
+
+  ```python
+  from csgo_surf_rl.client.socket_bridge import SocketClientBridge
+  from csgo_surf_rl.env.surf_env import SurfEnv
+
+  with SocketClientBridge(port=42813) as bridge:  # blocks until the plugin connects
+      env = SurfEnv(bridge)
+      obs, info = env.reset()
+      ...
+  ```
+
+Any other integration (e.g. a demo-file parser for offline demonstration
+data) is just another `GameClientBridge` implementation. Nothing above the
+bridge changes — that is the point of the boundary.
 
 This harness is intended for offline/local training and research use.

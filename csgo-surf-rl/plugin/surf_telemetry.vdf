@@ -1,0 +1,7 @@
+// Source plugin manifest. Place this in <game>/addons/ and set `file` to the
+// built module (without extension). The engine loads it inline at startup, or
+// on demand via `plugin_load addons/surf_telemetry`.
+"Plugin"
+{
+    "file" "addons/surf_telemetry"
+}

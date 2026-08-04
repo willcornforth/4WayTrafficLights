@@ -8,6 +8,14 @@ harness and a game client; MockSurfBridge is an offline stand-in.
 from csgo_surf_rl.client.bridge import GameClientBridge
 from csgo_surf_rl.client.client_state import ClientState
 from csgo_surf_rl.client.mock_bridge import MockSurfBridge
+from csgo_surf_rl.client.socket_bridge import SocketClientBridge
 from csgo_surf_rl.client.usercmd import Buttons, UserCmd
 
-__all__ = ["Buttons", "ClientState", "GameClientBridge", "MockSurfBridge", "UserCmd"]
+__all__ = [
+    "Buttons",
+    "ClientState",
+    "GameClientBridge",
+    "MockSurfBridge",
+    "SocketClientBridge",
+    "UserCmd",
+]
