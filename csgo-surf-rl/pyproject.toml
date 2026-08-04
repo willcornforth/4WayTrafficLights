@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "csgo-surf-rl"
+version = "0.1.0"
+description = "Reinforcement learning harness for a CSGO surf movement model, closed over the client data domain"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "gymnasium>=0.29",
+]
+
+[project.optional-dependencies]
+train = ["torch>=2.1"]
+dev = ["pytest>=7.4"]
+
+[project.scripts]
+surf-rl = "csgo_surf_rl.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
