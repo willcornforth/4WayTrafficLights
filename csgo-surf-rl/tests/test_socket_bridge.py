@@ -97,3 +97,40 @@ def test_handshake_reset_and_step_alternation():
     # The plugin saw exactly: reset, cmd, cmd — the alternation we expect.
     types = [m["type"] for m in plugin_box["plugin"].received]
     assert types == ["reset", "cmd", "cmd"]
+
+
+def test_command_channel():
+    """The harness can push a console command alongside a movement input and
+    as a standalone control message."""
+    bridge = SocketClientBridge(port=0)
+    port = bridge._listener.getsockname()[1]
+    plugin_box = {}
+
+    def run_plugin():
+        plugin = FakePlugin("127.0.0.1", port)
+        plugin_box["plugin"] = plugin
+        plugin.send_state()  # state consumed by reset()
+        for _ in range(3):  # reset reply, step reply, send_command reply
+            plugin.read_reply()
+            plugin.send_state()
+
+    t = threading.Thread(target=run_plugin)
+    t.start()
+    try:
+        bridge.reset()
+        bridge.step(UserCmd(sidemove=450.0, upmove=200.0, impulse=101), command="say hi")
+        bridge.send_command("sv_cheats 1; noclip")
+    finally:
+        t.join(timeout=5)
+        plugin_box["plugin"].close()
+        bridge.close()
+
+    received = plugin_box["plugin"].received
+    assert [m["type"] for m in received] == ["reset", "cmd", "command"]
+
+    cmd_msg = received[1]
+    assert cmd_msg["command"] == "say hi"
+    assert cmd_msg["cmd"]["upmove"] == 200.0
+    assert cmd_msg["cmd"]["impulse"] == 101
+
+    assert received[2]["command"] == "sv_cheats 1; noclip"

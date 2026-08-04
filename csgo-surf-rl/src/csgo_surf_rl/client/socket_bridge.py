@@ -45,21 +45,45 @@ class SocketClientBridge(GameClientBridge):
 
     # -- GameClientBridge ---------------------------------------------------
 
-    def reset(self) -> ClientState:
+    def reset(self, command: str | None = None) -> ClientState:
+        """Restart the run. `command` overrides the plugin's configured reset
+        console command for this reset only (e.g. a specific teleport)."""
         self._ensure_connected()
         # Respond to any state the plugin is currently blocked on, so our
         # reset lands as its reply; if nothing is pending, pull one first.
         if not self._awaiting_reply:
             self._read_state()
-        self._send({"type": "reset"})
+        message: dict = {"type": "reset"}
+        if command is not None:
+            message["command"] = command
+        self._send(message)
         self._awaiting_reply = False
         state = self._read_state()  # first state of the fresh run
         return state
 
-    def step(self, cmd: UserCmd) -> ClientState:
+    def step(self, cmd: UserCmd, command: str | None = None) -> ClientState:
+        """Send this tick's UserCmd to the client. An optional `command` is a
+        console command run the same tick (`;`-separate to batch several)."""
         if not self._awaiting_reply:
             raise RuntimeError("step() called before reset() established a pending state")
-        self._send({"type": "cmd", "cmd": cmd.clamped().to_dict()})
+        message: dict = {"type": "cmd", "cmd": cmd.clamped().to_dict()}
+        if command is not None:
+            message["command"] = command
+        self._send(message)
+        self._awaiting_reply = False
+        return self._read_state()
+
+    def send_command(self, command: str) -> ClientState:
+        """Send a console command to the client without a movement input.
+
+        Intended for setup/control between episodes (teleport, cvars, load a
+        map), not for interleaving inside the RL action loop: the tick this
+        replies to gets no model movement (the engine's own command stands).
+        Returns the next client state so the caller stays in sync.
+        """
+        if not self._awaiting_reply:
+            self._read_state()
+        self._send({"type": "command", "command": command})
         self._awaiting_reply = False
         return self._read_state()
 

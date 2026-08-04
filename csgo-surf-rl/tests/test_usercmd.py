@@ -20,3 +20,20 @@ def test_clamping():
     cmd = UserCmd(yaw_delta=999.0, forwardmove=9999.0).clamped()
     assert cmd.yaw_delta == MAX_ANGLE_DELTA_PER_TICK
     assert cmd.forwardmove == MAX_MOVE_SPEED
+
+
+def test_upmove_and_impulse_round_trip_and_clamp():
+    cmd = UserCmd(upmove=9999.0, impulse=101, sidemove=450.0)
+    # upmove is clamped like the other move axes; impulse passes through.
+    assert cmd.clamped().upmove == MAX_MOVE_SPEED
+    assert cmd.clamped().impulse == 101
+    # Auxiliary inputs survive dict serialization...
+    assert UserCmd.from_dict(cmd.to_dict()) == cmd
+    # ...but are absent from the learned action vector (still length 6).
+    assert cmd.to_array().shape == (UserCmd.VECTOR_SIZE,)
+
+
+def test_from_dict_tolerates_missing_aux_fields():
+    legacy = {"yaw_delta": 1.0, "pitch_delta": 0.0, "forwardmove": 0.0, "sidemove": 0.0, "buttons": 0}
+    cmd = UserCmd.from_dict(legacy)
+    assert cmd.upmove == 0.0 and cmd.impulse == 0

@@ -57,6 +57,23 @@ bool HasType(const std::string& json, const char* type) {
     return json.find(needle) != std::string::npos;
 }
 
+// Extract "key":"value" from a flat JSON object. Assumes the value contains
+// no escaped quotes (true for console commands the harness sends). Returns
+// false if the key is absent.
+bool FindString(const std::string& json, const char* key, std::string* out) {
+    std::string needle = std::string("\"") + key + "\"";
+    size_t k = json.find(needle);
+    if (k == std::string::npos) return false;
+    size_t colon = json.find(':', k + needle.size());
+    if (colon == std::string::npos) return false;
+    size_t q1 = json.find('"', colon + 1);
+    if (q1 == std::string::npos) return false;
+    size_t q2 = json.find('"', q1 + 1);
+    if (q2 == std::string::npos) return false;
+    out->assign(json, q1 + 1, q2 - q1 - 1);
+    return true;
+}
+
 }  // namespace
 
 IpcClient::IpcClient() = default;
@@ -175,6 +192,13 @@ CommandFrame IpcClient::Exchange(const StateFrame& s, int timeout_ms) {
     if (HasType(reply, "reset")) {
         cmd.is_reset = true;
         cmd.valid = true;
+        FindString(reply, "command", &cmd.console_command);  // optional override
+        return cmd;
+    }
+    if (HasType(reply, "command")) {
+        // Console command only; no movement applied this tick.
+        FindString(reply, "command", &cmd.console_command);
+        cmd.valid = true;
         return cmd;
     }
 
@@ -183,7 +207,11 @@ CommandFrame IpcClient::Exchange(const StateFrame& s, int timeout_ms) {
     if (FindNumber(reply, "pitch_delta", &v)) cmd.pitch_delta = (float)v;
     if (FindNumber(reply, "forwardmove", &v)) cmd.forwardmove = (float)v;
     if (FindNumber(reply, "sidemove", &v)) cmd.sidemove = (float)v;
+    if (FindNumber(reply, "upmove", &v)) cmd.upmove = (float)v;
     if (FindNumber(reply, "buttons", &v)) cmd.buttons = (int)v;
+    if (FindNumber(reply, "impulse", &v)) cmd.impulse = (int)v;
+    FindString(reply, "command", &cmd.console_command);  // optional co-command
+    cmd.has_movement = true;
     cmd.valid = true;
     return cmd;
 }

@@ -50,15 +50,23 @@ void Session::OnCreateMove(CUserCmd* usercmd) {
     if (!cmd.valid) return;  // timeout: keep the engine's own command
 
     if (cmd.is_reset) {
-        if (!cfg_.reset_command.empty()) {
-            adapter_.RunConsoleCommand(cfg_.reset_command.c_str());
-        }
+        // A per-reset override command takes precedence over the configured one.
+        const std::string& rc =
+            !cmd.console_command.empty() ? cmd.console_command : cfg_.reset_command;
+        if (!rc.empty()) adapter_.RunConsoleCommand(rc.c_str());
         tick_ = 0;
         return;
     }
 
-    adapter_.ApplyCommand(cmd, usercmd);
-    ++tick_;
+    // A console command rides along whether or not movement is set, so the
+    // harness can push inputs to the client on any tick.
+    if (!cmd.console_command.empty()) {
+        adapter_.RunConsoleCommand(cmd.console_command.c_str());
+    }
+    if (cmd.has_movement) {
+        adapter_.ApplyCommand(cmd, usercmd);
+        ++tick_;
+    }
 }
 
 }  // namespace surf

@@ -113,7 +113,9 @@ void GameAdapter::ApplyCommand(const CommandFrame& cmd, CUserCmd* usercmd) {
 
     usercmd->forwardmove = cmd.forwardmove;
     usercmd->sidemove = cmd.sidemove;
+    usercmd->upmove = cmd.upmove;
     usercmd->buttons = ToEngineButtons(cmd.buttons);
+    if (cmd.impulse != 0) usercmd->impulse = (unsigned char)cmd.impulse;
 }
 
 void GameAdapter::RunConsoleCommand(const char* command) {

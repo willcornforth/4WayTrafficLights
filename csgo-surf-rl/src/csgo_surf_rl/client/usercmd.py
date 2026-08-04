@@ -44,9 +44,14 @@ class UserCmd:
     pitch_delta: float = 0.0  # degrees, +down
     forwardmove: float = 0.0  # units/s, +forward (W/S axis)
     sidemove: float = 0.0  # units/s, +right (A/D axis)
+    upmove: float = 0.0  # units/s, +up (jump/crouch analog axis)
     buttons: Buttons = Buttons.NONE
+    impulse: int = 0  # one-shot impulse input (e.g. 101); 0 = none
 
     # Flat vector layout shared by to_array/from_array and the policy head.
+    # upmove/impulse are valid client inputs the harness may send but are
+    # deliberately NOT in the learned action vector — the button axes already
+    # cover jump/duck, and impulse is a scripted one-shot, not a policy output.
     VECTOR_SIZE = 6
 
     def clamped(self) -> "UserCmd":
@@ -56,7 +61,9 @@ class UserCmd:
             pitch_delta=float(np.clip(self.pitch_delta, -MAX_ANGLE_DELTA_PER_TICK, MAX_ANGLE_DELTA_PER_TICK)),
             forwardmove=float(np.clip(self.forwardmove, -MAX_MOVE_SPEED, MAX_MOVE_SPEED)),
             sidemove=float(np.clip(self.sidemove, -MAX_MOVE_SPEED, MAX_MOVE_SPEED)),
+            upmove=float(np.clip(self.upmove, -MAX_MOVE_SPEED, MAX_MOVE_SPEED)),
             buttons=self.buttons,
+            impulse=int(self.impulse),
         )
 
     def to_array(self) -> np.ndarray:
@@ -97,15 +104,20 @@ class UserCmd:
             "pitch_delta": self.pitch_delta,
             "forwardmove": self.forwardmove,
             "sidemove": self.sidemove,
+            "upmove": self.upmove,
             "buttons": int(self.buttons),
+            "impulse": self.impulse,
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> "UserCmd":
+        # .get() keeps older recordings (without upmove/impulse) loadable.
         return cls(
             yaw_delta=d["yaw_delta"],
             pitch_delta=d["pitch_delta"],
             forwardmove=d["forwardmove"],
             sidemove=d["sidemove"],
+            upmove=d.get("upmove", 0.0),
+            impulse=d.get("impulse", 0),
             buttons=Buttons(d["buttons"]),
         )

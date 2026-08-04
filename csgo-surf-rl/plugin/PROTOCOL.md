@@ -42,35 +42,56 @@ The plugin drives the clock. Inside each `CreateMove` it sends one `state`:
 wires them up (fell off / reached the end zone); otherwise `false`, and the
 harness may derive termination itself.
 
-The plugin then blocks (up to `response_timeout_ms`) for one reply:
+The plugin then blocks (up to `response_timeout_ms`) for one reply. The reply
+is one of three types.
+
+### `cmd` — send an input to the client
 
 ```json
 {"type":"cmd",
  "cmd":{"yaw_delta":0.0,"pitch_delta":0.0,
-        "forwardmove":0.0,"sidemove":450.0,"buttons":0}}
+        "forwardmove":0.0,"sidemove":450.0,"upmove":0.0,
+        "buttons":0,"impulse":0},
+ "command":"echo optional console command this tick"}
 ```
 
 - `yaw_delta` / `pitch_delta` are **degrees this tick**. The plugin adds them
   to the current view angles and writes the result into both the outgoing
   `CUserCmd.viewangles` and the engine view, so the action domain matches the
   Python `UserCmd` (mouse-style deltas), not absolute angles.
-- `forwardmove` / `sidemove` map directly to `CUserCmd.forwardmove/sidemove`.
+- `forwardmove` / `sidemove` / `upmove` map directly to the matching
+  `CUserCmd` move axes.
 - `buttons` is the Python `Buttons` bitfield (JUMP=1, DUCK=2, ATTACK=4,
   USE=8); the plugin translates it to the engine's `IN_*` flags.
+- `impulse` is a one-shot impulse input written to `CUserCmd.impulse` when
+  non-zero.
+- `command` (optional) is a console command run this same tick — so the
+  harness can push movement **and** a control input together. `;`-separate to
+  batch several.
 
 If no reply arrives within the timeout the plugin applies a zero command for
 that tick (no freeze) and continues.
 
-## Reset
-
-To start a new run the harness sends:
+### `command` — send a console input without movement
 
 ```json
-{"type":"reset"}
+{"type":"command","command":"sv_cheats 1; noclip"}
 ```
 
-The plugin runs its configured reset console command (e.g. a teleport to the
-course start; requires a server the user controls) and then resumes sending
-`state` frames. The first `state` after a reset carries the run's opening
-tick.
+The plugin runs the console command and applies no model movement that tick
+(the engine's own command stands). For setup/control between runs.
+
+### `reset` — restart the run
+
+```json
+{"type":"reset","command":"optional teleport override"}
+```
+
+The plugin runs `command` if present, otherwise its configured reset console
+command (e.g. a teleport to the course start; requires a server the user
+controls), then resumes sending `state` frames. The first `state` after a
+reset carries the run's opening tick.
+
+All harness→client console input flows through `ClientCmd_Unrestricted`, so
+it is bounded by whatever privileges the client/server actually grants.
 ```

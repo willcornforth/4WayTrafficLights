@@ -100,3 +100,25 @@ with SocketClientBridge(port=42813) as bridge:  # blocks until the plugin connec
 
 `SocketClientBridge` is a drop-in `GameClientBridge`, so the env, recorder,
 and training loops are unchanged from the mock-bridge setup.
+
+## Sending inputs to the client
+
+Beyond the per-tick `UserCmd` the model emits, the harness can push inputs to
+the client directly:
+
+```python
+# A movement input plus a console input on the same tick:
+bridge.step(UserCmd(sidemove=450.0, upmove=200.0, impulse=101),
+            command="say training")
+
+# A console input only (setup/control between runs — no model movement):
+bridge.send_command("sv_cheats 1; noclip")
+
+# Reset with a one-off teleport override:
+bridge.reset(command="ent_fire !self AddOutput \"origin 0 0 64\"")
+```
+
+`UserCmd` now carries the full client input structure — `upmove` (jump/crouch
+analog axis) and `impulse` (one-shot inputs like `impulse 101`) in addition
+to the move/view/button axes. They are applied to the outgoing `CUserCmd` but
+are deliberately not part of the learned action vector (see `usercmd.py`).

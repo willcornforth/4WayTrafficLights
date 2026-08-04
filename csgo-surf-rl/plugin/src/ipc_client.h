@@ -27,9 +27,13 @@ struct CommandFrame {
     float pitch_delta = 0.0f;
     float forwardmove = 0.0f;
     float sidemove = 0.0f;
-    int buttons = 0;  // Python Buttons bitfield
-    bool is_reset = false;  // harness asked us to reset the run
-    bool valid = false;     // false => timeout/no reply this tick
+    float upmove = 0.0f;             // jump/crouch analog axis
+    int buttons = 0;                 // Python Buttons bitfield
+    int impulse = 0;                 // one-shot impulse input (0 = none)
+    std::string console_command;     // optional console command to run
+    bool has_movement = false;       // apply the movement fields to the CUserCmd
+    bool is_reset = false;           // harness asked us to reset the run
+    bool valid = false;              // false => timeout/no reply this tick
 };
 
 class IpcClient {
