@@ -40,6 +40,11 @@ something you're authorized to do.
 | `src/vmt_hook.h` | Generic vtable hook helper |
 | `src/sdk_types.h` | SDK type surface (or include the real HL2SDK) |
 | `src/game_offsets.h` | **Build-specific** interface versions, VMT index, netvars |
+| `src/debug_state.h` | Shared telemetry + control state for the debug UI |
+| `src/debug_overlay.*` | In-world debug drawing via engine `IVDebugOverlay` |
+| `src/debug_menu.*` | ImGui debug menu contents (backend-agnostic) |
+| `src/imgui_backend.*` | ImGui context + render-device/present hook (integration point) |
+| `src/imgui_support.h` | Real ImGui include, or a no-op shim when it is absent |
 | `include/surf_protocol.h` | Wire constants + button translation (shared) |
 | `PROTOCOL.md` | The wire protocol, matching the Python dicts |
 
@@ -48,12 +53,15 @@ something you're authorized to do.
 ```bash
 cd plugin
 cmake -S . -B build            # add -DHL2SDK_ROOT=/path/to/hl2sdk for the real SDK
+                               # add -DIMGUI_ROOT=/path/to/imgui for the real menu UI
 cmake --build build
 ```
 
 Without `HL2SDK_ROOT` it compiles against the self-contained shims in
 `sdk_types.h` / `server_plugin.h` — enough to type-check the transport and
-hook logic. For a loadable plugin, build with a real HL2SDK checkout.
+hook logic. For a loadable plugin, build with a real HL2SDK checkout. Without
+`IMGUI_ROOT` the ImGui menu compiles against a no-op shim (the in-world
+overlay still works); add Dear ImGui to get the real menu.
 
 ## Integration points to fill in for a target build
 
@@ -69,6 +77,34 @@ These are isolated on purpose; the logic never hard-codes them:
 3. **Reset command** — set `SURF_RESET_COMMAND` to whatever teleports the
    player to the course start on your map/server (requires the appropriate
    server privileges).
+4. **`ResolveRenderDevice()` in `imgui_backend.cpp`** — *only needed for the
+   ImGui menu*. Return the graphics device and install a present/paint hook
+   that calls `GlobalImGuiBackend().RenderFrame()`. Until then the menu stays
+   disabled; the in-world overlay is independent of this and needs nothing.
+
+## Debug menu & overlay
+
+The plugin ships an in-client debug UI with two independent halves:
+
+- **In-world overlay** (`debug_overlay.*`) — draws the player's velocity
+  vector, surface normal, and an origin readout (tick / speed / ground-air)
+  using the engine's `IVDebugOverlay`. It needs no graphics hook, so it works
+  as soon as the interface resolves — this is the "if required" debug drawing.
+- **ImGui menu** (`debug_menu.*` + `imgui_backend.*`) — a window showing live
+  telemetry (connection, tick, timeouts, origin/velocity/speed/view, run
+  state, last applied command) with toggles that feed straight back into the
+  tick loop:
+  - **Apply model input** — when off, the model's command is still received
+    and shown but not applied, so a human can drive while you watch what the
+    model *would* have sent.
+  - **Pause exchange** — stop talking to the harness (input untouched).
+  - **Draw world overlay** + per-element toggles.
+  - **Manual console input** — a text box + *Run command* button, and a
+    *Reset run* button, so you can push inputs to the client straight from
+    the menu (routed through the same `ClientCmd_Unrestricted` path).
+
+Both halves read and write one shared `DebugState` (`debug_state.h`); the
+session publishes telemetry into it each tick and honors its control flags.
 
 ## Installing
 

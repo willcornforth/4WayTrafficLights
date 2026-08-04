@@ -4,6 +4,7 @@
 #ifndef SURF_SESSION_H
 #define SURF_SESSION_H
 
+#include "debug_overlay.h"
 #include "game_adapter.h"
 #include "ipc_client.h"
 #include "surf_protocol.h"
@@ -36,6 +37,7 @@ private:
     SessionConfig cfg_;
     GameAdapter adapter_;
     IpcClient ipc_;
+    DebugOverlay overlay_;
     long long tick_ = 0;
     int ticks_since_connect_attempt_ = 0;
     bool initialized_ = false;

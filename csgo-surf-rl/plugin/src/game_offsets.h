@@ -11,6 +11,7 @@ namespace surf {
 constexpr const char* kEngineClientIface = "VEngineClient014";
 constexpr const char* kClientEntityListIface = "VClientEntityList003";
 constexpr const char* kBaseClientIface = "VClient018";
+constexpr const char* kDebugOverlayIface = "VDebugOverlay004";
 
 // VMT index of the function we hook. On the CS:GO-era client this is the
 // client mode's CreateMove(float, CUserCmd*). Confirm against the target

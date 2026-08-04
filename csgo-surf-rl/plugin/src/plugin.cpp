@@ -1,6 +1,7 @@
 // Plugin entry point: implements IServerPluginCallbacks and, on level init,
 // installs the CreateMove hook that drives the surf telemetry session.
 #include "createmove_hook.h"
+#include "imgui_backend.h"
 #include "server_plugin.h"
 #include "session.h"
 
@@ -80,12 +81,16 @@ public:
             // it simply does nothing until the integration points are set.
             return true;
         }
+        // Best-effort: the in-world overlay works without this; the ImGui menu
+        // needs a render device + present hook (see imgui_backend.cpp).
+        GlobalImGuiBackend().Initialize();
         std::printf("[surf] loaded\n");
         return true;
     }
 
     void Unload() override {
         RemoveCreateMoveHook();
+        GlobalImGuiBackend().Shutdown();
         GlobalSession().Shutdown();
     }
 

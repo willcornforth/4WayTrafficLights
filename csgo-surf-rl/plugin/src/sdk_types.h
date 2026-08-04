@@ -12,6 +12,7 @@
 #include "cdll_int.h"
 #include "icliententitylist.h"
 #include "in_buttons.h"
+#include "ivdebugoverlay.h"
 #include "mathlib/vector.h"
 #include "usercmd.h"
 #else
@@ -64,6 +65,24 @@ class IClientEntity;
 class IClientEntityList {
 public:
     virtual IClientEntity* GetClientEntity(int index) = 0;
+};
+
+// The subset of the engine debug-overlay interface (IVDebugOverlay) we use.
+// The engine renders these directly, so they need no graphics device hook.
+// NOTE: in this shim the method order is illustrative; against a real build,
+// SURF_USE_HL2SDK pulls in the SDK's ABI-correct ivdebugoverlay.h instead.
+class IVDebugOverlay {
+public:
+    virtual ~IVDebugOverlay() {}
+    virtual void AddLineOverlay(const Vector& origin, const Vector& dest, int r,
+                                int g, int b, bool noDepthTest, float duration) = 0;
+    virtual void AddTextOverlay(const Vector& origin, int line_offset,
+                                float duration, const char* format, ...) = 0;
+    virtual void AddScreenTextOverlay(float x, float y, float duration, int r,
+                                      int g, int b, int a, const char* text) = 0;
+    virtual void AddBoxOverlay(const Vector& origin, const Vector& mins,
+                               const Vector& maxs, const QAngle& angles, int r,
+                               int g, int b, int a, float duration) = 0;
 };
 
 #endif  // SURF_USE_HL2SDK
